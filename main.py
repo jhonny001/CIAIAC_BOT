@@ -25,6 +25,7 @@ def main():
             lambda x: create_message(x), axis=1
         )
     print("TE CONTROLO!")
+    print("JUEPUTA")
     return df_news_edited
 
 
