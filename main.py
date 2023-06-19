@@ -24,6 +24,7 @@ def main():
         df_news_edited["Message"] = df_news_edited.apply(
             lambda x: create_message(x), axis=1
         )
+    print("TE CONTROLO!")
     return df_news_edited
 
 
