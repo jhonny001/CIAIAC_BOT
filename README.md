@@ -1,2 +1,2 @@
 # CIAIAC_BOT
-This is a pyhton program that checks the Spanish CIAIAC website for updates and forward them to a Telegram group using a BOT.
+This is a Python program that checks the Spanish CIAIAC website for updates and forwards them to a Telegram group using a BOT.
