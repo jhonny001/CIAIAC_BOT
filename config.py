@@ -1,9 +1,16 @@
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+CHAT_ID = os.environ.get("CHAT_ID")
+BOT_TOKEN= os.environ.get("BOT_TOKEN")
 PARSE_DATE_FORMATS = [
     "%d de %B de %Y",
     "%-d de %B de %Y",
     "%d de %B %Y",
     "%-d de %B %Y",
 ]
+N_DAYS_TO_SEND = 20
 READ_DATE_FORMAT = "%d/%m/%Y"
 READ_CSV_FILENAME = "accidents.csv"
 READ_CSV_SEP = ";"

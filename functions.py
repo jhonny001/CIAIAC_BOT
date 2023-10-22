@@ -1,11 +1,12 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 
 from config import (
     MONTHS,
+    N_DAYS_TO_SEND,
     PARSE_DATE_FORMATS,
     READ_CSV_FILENAME,
     READ_CSV_SEP,
@@ -25,7 +26,7 @@ def create_message(row):
     date = row.Date.strftime(WRITE_DATE_FORMAT)
     reference = row.name
     status = row.Status
-    name_type = "Accident" if "A-" in reference else "Incident"
+    name_type = "Accidente" if "A-" in reference else "Incidente"
     if status == "INITIAL":
         message = MESSAGE_INITIAL
     elif status == "TEMPORARY":
@@ -42,13 +43,27 @@ def create_message(row):
         .replace("{LINK}", link)
     )
 
+def check_if_sent_to_telegram(row, to_send_indexes):
+
+    if row.name in to_send_indexes:
+        return False
+    if not row.Sent_to_telegram:
+        if row.Date > (datetime.now()-timedelta(days=N_DAYS_TO_SEND)):
+            return False
+    return True
+
+
 
 def get_news_and_edited_accidents(df_original, df_new):
     news = df_new[~(df_new.index.isin(df_original.index))]
-    edited = df_new[df_new.index.isin(df_original.index)][
-        ~(df_new[df_new.index.isin(df_original.index)].Status == df_original.Status)
-    ]
-    return pd.concat([news, edited])
+    edited = df_new.drop(news.index)[
+                                        df_new.drop(news.index).Status != df_original.Status]
+
+    change_sent_to_telegram = pd.concat([news, edited])
+    df_new["Sent_to_telegram"] = df_new.apply(
+                                    lambda x: check_if_sent_to_telegram(
+                                            x, change_sent_to_telegram.index), axis=1)
+    return df_new
 
 
 def translate_month(s):
@@ -70,6 +85,7 @@ def get_information(text):
     data["Registrations"] = registrations
     data["Text"] = text
     data["Modified"] = False
+    data["Sent_to_telegram"] = False
     return data
 
 
@@ -122,8 +138,8 @@ def parse_date(s):
             pass
 
 
-def read_and_transform_csv_to_df():
-    df_original = pd.read_csv(READ_CSV_FILENAME, sep=READ_CSV_SEP).set_index("Ref")
+def read_and_transform_csv_to_df(file_name=READ_CSV_FILENAME, sep=READ_CSV_SEP):
+    df_original = pd.read_csv(file_name, sep=sep).set_index("Ref")
     df_original["Date"] = pd.to_datetime(df_original["Date"], format=READ_DATE_FORMAT)
     df_original["Modified"] = df_original["Modified"].astype(bool)
     return df_original
@@ -148,10 +164,37 @@ def parse_year_url_and_add_to_database(year, url):
     df = df.sort_values(by="Date")
 
     df.update(df_original["Modified"])
+    df.update(df_original["Sent_to_telegram"])
     df_original.update(df[df["Modified"] == 0])
-    df_original.update(df[["Status", "link"]])
+    df_original.update(df[["Status", "link", "Sent_to_telegram"]])
     df_original = df_original.combine_first(df)
-    df_original = df_original.sort_values(by="Date")
-    df_original["Date"] = df_original.Date.dt.strftime(WRITE_DATE_FORMAT)
-    df_original.to_csv(WRITE_CSV_FILENAME, sep=WRITE_CSV_SEP)
-    print(df_original.columns)
+    save_data(df_original)
+
+
+def save_data(df, write_csv_filename=WRITE_CSV_FILENAME, sep=WRITE_CSV_SEP):
+    df = df.sort_values(by="Date")
+    df["Date"] = df.Date.dt.strftime(WRITE_DATE_FORMAT)
+    df.to_csv(write_csv_filename, sep=WRITE_CSV_SEP)
+
+
+
+def send_message_to_telegram(row, token, chat_id):
+    if not row.Sent_to_telegram:
+        url = (
+            "https://api.telegram.org/bot"
+            + token
+            + "/sendMessage?chat_id="
+            + chat_id
+            + "&parse_mode=Markdown&text="
+            + row.Message
+        )
+        r = requests.get(url)
+        if r.status_code == 200:
+            return True
+        else:
+            return False
+    else:
+        return row.Sent_to_telegram
+
+
+

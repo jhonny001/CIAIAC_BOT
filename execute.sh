@@ -1,5 +1,6 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 cd $SCRIPT_DIR
 source venv/bin/activate
-git pull
+# git pull
+pip install -r requirements.txt
 python3 -m main
