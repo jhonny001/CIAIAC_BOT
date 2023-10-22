@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 .vscode/
 accidents.csv
+test_data/*
+accidents_copy.csv
